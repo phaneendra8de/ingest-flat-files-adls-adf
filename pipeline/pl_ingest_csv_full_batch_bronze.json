@@ -169,6 +169,34 @@
 									"value": "@activity('gm_validate_file').output.exists",
 									"type": "Expression"
 								},
+								"ifFalseActivities": [
+									{
+										"name": "sc_log_skipped",
+										"type": "Script",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"linkedServiceName": {
+											"referenceName": "ls_postgres_ingestion",
+											"type": "LinkedServiceReference"
+										},
+										"typeProperties": {
+											"scripts": [
+												{
+													"type": "Query",
+													"text": "INSERT INTO ingestion.audit_ingestion_audit (\n    run_id,\n    source_name,\n    file_name,\n    status,\n    start_time,\n    end_time,\n    created_at\n)\nVALUES (\n    '@{variables('v_run_id')}',\n    'customer',\n    '@{variables('v_current_file')}',\n    'SKIPPED',\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP\n);"
+												}
+											],
+											"scriptBlockExecutionTimeout": "02:00:00"
+										}
+									}
+								],
 								"ifTrueActivities": [
 									{
 										"name": "cp_csv_to_parquet",
@@ -253,6 +281,72 @@
 												}
 											}
 										]
+									},
+									{
+										"name": "sc_log_success",
+										"type": "Script",
+										"dependsOn": [
+											{
+												"activity": "cp_csv_to_parquet",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"linkedServiceName": {
+											"referenceName": "ls_postgres_ingestion",
+											"type": "LinkedServiceReference"
+										},
+										"typeProperties": {
+											"scripts": [
+												{
+													"type": "Query",
+													"text": "INSERT INTO ingestion.audit_ingestion_audit (\n    run_id,\n    source_name,\n    file_name,\n    status,\n    start_time,\n    end_time,\n    created_at\n)\nVALUES (\n    '@{variables('v_run_id')}',\n    'customer',\n    '@{variables('v_current_file')}',\n    'SUCCESS',\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP\n);"
+												}
+											],
+											"scriptBlockExecutionTimeout": "02:00:00"
+										}
+									},
+									{
+										"name": "sc_log_failure",
+										"type": "Script",
+										"dependsOn": [
+											{
+												"activity": "cp_csv_to_parquet",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"linkedServiceName": {
+											"referenceName": "ls_postgres_ingestion",
+											"type": "LinkedServiceReference"
+										},
+										"typeProperties": {
+											"scripts": [
+												{
+													"type": "Query",
+													"text": "INSERT INTO ingestion.audit_ingestion_audit (\n    run_id,\n    source_name,\n    file_name,\n    status,\n    start_time,\n    end_time,\n    created_at\n)\nVALUES (\n    '@{variables('v_run_id')}',\n    'customer',\n    '@{variables('v_current_file')}',\n    'FAILED',\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP\n);"
+												}
+											],
+											"scriptBlockExecutionTimeout": "02:00:00"
+										}
 									}
 								]
 							}
