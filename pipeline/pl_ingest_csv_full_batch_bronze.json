@@ -48,7 +48,10 @@
 								"value": "@pipeline().parameters.p_source_directory",
 								"type": "Expression"
 							},
-							"p_file_name": "''"
+							"p_file_name": {
+								"value": "@''",
+								"type": "Expression"
+							}
 						}
 					},
 					"fieldList": [
