@@ -13,7 +13,8 @@
 				"type": "string"
 			},
 			"p_file_name": {
-				"type": "string"
+				"type": "string",
+				"defaultValue": "''"
 			}
 		},
 		"annotations": [],
