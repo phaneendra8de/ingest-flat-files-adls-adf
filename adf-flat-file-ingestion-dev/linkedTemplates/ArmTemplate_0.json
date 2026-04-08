@@ -93,7 +93,8 @@
 						"type": "string"
 					},
 					"p_file_name": {
-						"type": "string"
+						"type": "string",
+						"defaultValue": "''"
 					}
 				},
 				"annotations": [],
@@ -286,6 +287,408 @@
 				}
 			},
 			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_postgres_ingestion')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_ingest_csv_full_batch_bronze')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "set_run_id",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "v_run_id",
+							"value": "@string(guid())"
+						}
+					},
+					{
+						"name": "gm_get_file_list",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "set_run_id",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ds_adls_csv_ingest_source",
+								"type": "DatasetReference",
+								"parameters": {
+									"p_source_container": {
+										"value": "@pipeline().parameters.p_source_container",
+										"type": "Expression"
+									},
+									"p_source_directory": {
+										"value": "@pipeline().parameters.p_source_directory",
+										"type": "Expression"
+									},
+									"p_file_name": {
+										"value": "@''",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "fe_process_files",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "gm_get_file_list",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('gm_get_file_list').output.childItems",
+								"type": "Expression"
+							},
+							"batchCount": 2,
+							"activities": [
+								{
+									"name": "set_current_file",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "v_current_file",
+										"value": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "gm_validate_file",
+									"type": "GetMetadata",
+									"dependsOn": [
+										{
+											"activity": "set_current_file",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "ds_adls_csv_ingest_source",
+											"type": "DatasetReference",
+											"parameters": {
+												"p_source_container": {
+													"value": "@pipeline().parameters.p_source_container",
+													"type": "Expression"
+												},
+												"p_source_directory": {
+													"value": "@pipeline().parameters.p_source_directory",
+													"type": "Expression"
+												},
+												"p_file_name": {
+													"value": "@variables('v_current_file')",
+													"type": "Expression"
+												}
+											}
+										},
+										"fieldList": [
+											"exists"
+										],
+										"storeSettings": {
+											"type": "AzureBlobFSReadSettings",
+											"enablePartitionDiscovery": false
+										},
+										"formatSettings": {
+											"type": "DelimitedTextReadSettings"
+										}
+									}
+								},
+								{
+									"name": "if_file_valid",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "gm_validate_file",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@activity('gm_validate_file').output.exists",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "sc_log_skipped",
+												"type": "Script",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"linkedServiceName": {
+													"referenceName": "ls_postgres_ingestion",
+													"type": "LinkedServiceReference"
+												},
+												"typeProperties": {
+													"scripts": [
+														{
+															"type": "Query",
+															"text": "INSERT INTO ingestion.audit_ingestion_audit (\n    run_id,\n    source_name,\n    file_name,\n    status,\n    start_time,\n    end_time,\n    created_at\n)\nVALUES (\n    '@{variables('v_run_id')}',\n    'customer',\n    '@{variables('v_current_file')}',\n    'SKIPPED',\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP\n);"
+														}
+													],
+													"scriptBlockExecutionTimeout": "02:00:00"
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "cp_csv_to_parquet",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"storeSettings": {
+															"type": "AzureBlobFSReadSettings",
+															"recursive": true,
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														}
+													},
+													"sink": {
+														"type": "ParquetSink",
+														"storeSettings": {
+															"type": "AzureBlobFSWriteSettings"
+														},
+														"formatSettings": {
+															"type": "ParquetWriteSettings"
+														}
+													},
+													"enableStaging": false,
+													"translator": {
+														"type": "TabularTranslator",
+														"typeConversion": true,
+														"typeConversionSettings": {
+															"allowDataTruncation": true,
+															"treatBooleanAsNumber": false
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ds_adls_csv_ingest_source",
+														"type": "DatasetReference",
+														"parameters": {
+															"p_source_container": {
+																"value": "@pipeline().parameters.p_source_container",
+																"type": "Expression"
+															},
+															"p_source_directory": {
+																"value": "@pipeline().parameters.p_source_directory",
+																"type": "Expression"
+															},
+															"p_file_name": {
+																"value": "@variables('v_current_file')",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "ds_adls_parquet_ingest_bronze",
+														"type": "DatasetReference",
+														"parameters": {
+															"p_target_container": {
+																"value": "@pipeline().parameters.p_target_container",
+																"type": "Expression"
+															},
+															"p_target_directory": {
+																"value": "@pipeline().parameters.p_target_directory",
+																"type": "Expression"
+															},
+															"p_file_name": {
+																"value": "@replace(variables('v_current_file'), '.csv.txt', '.parquet')",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											},
+											{
+												"name": "sc_log_success",
+												"type": "Script",
+												"dependsOn": [
+													{
+														"activity": "cp_csv_to_parquet",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"linkedServiceName": {
+													"referenceName": "ls_postgres_ingestion",
+													"type": "LinkedServiceReference"
+												},
+												"typeProperties": {
+													"scripts": [
+														{
+															"type": "Query",
+															"text": "INSERT INTO ingestion.audit_ingestion_audit (\n    run_id,\n    source_name,\n    file_name,\n    status,\n    start_time,\n    end_time,\n    created_at\n)\nVALUES (\n    '@{variables('v_run_id')}',\n    'customer',\n    '@{variables('v_current_file')}',\n    'SUCCESS',\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP\n);"
+														}
+													],
+													"scriptBlockExecutionTimeout": "02:00:00"
+												}
+											},
+											{
+												"name": "sc_log_failure",
+												"type": "Script",
+												"dependsOn": [
+													{
+														"activity": "cp_csv_to_parquet",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"linkedServiceName": {
+													"referenceName": "ls_postgres_ingestion",
+													"type": "LinkedServiceReference"
+												},
+												"typeProperties": {
+													"scripts": [
+														{
+															"type": "Query",
+															"text": "INSERT INTO ingestion.audit_ingestion_audit (\n    run_id,\n    source_name,\n    file_name,\n    status,\n    start_time,\n    end_time,\n    created_at\n)\nVALUES (\n    '@{variables('v_run_id')}',\n    'customer',\n    '@{variables('v_current_file')}',\n    'FAILED',\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP,\n    CURRENT_TIMESTAMP\n);"
+														}
+													],
+													"scriptBlockExecutionTimeout": "02:00:00"
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_source_container": {
+						"type": "string",
+						"defaultValue": "raw"
+					},
+					"p_source_directory": {
+						"type": "string",
+						"defaultValue": "flat-files/customers"
+					},
+					"p_target_container": {
+						"type": "string",
+						"defaultValue": "bronze"
+					},
+					"p_target_directory": {
+						"type": "string",
+						"defaultValue": "flat-files/customers"
+					},
+					"p_file_extension": {
+						"type": "string"
+					},
+					"p_parallelism": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"v_run_id": {
+						"type": "String"
+					},
+					"v_current_file": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_adls_csv_ingest_source')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_ingest_bronze')]",
 				"[concat(variables('factoryId'), '/linkedServices/ls_postgres_ingestion')]"
 			]
 		}
