@@ -1,10 +1,6 @@
 {
 	"name": "ds_adls_csv_ingest_source",
 	"properties": {
-		"linkedServiceName": {
-			"referenceName": "ls_adls_ingestion",
-			"type": "LinkedServiceReference"
-		},
 		"parameters": {
 			"p_source_container": {
 				"type": "string"

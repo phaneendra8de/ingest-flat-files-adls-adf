@@ -1,10 +1,6 @@
 {
 	"name": "ds_adls_parquet_ingest_bronze",
 	"properties": {
-		"linkedServiceName": {
-			"referenceName": "ls_adls_ingestion",
-			"type": "LinkedServiceReference"
-		},
 		"parameters": {
 			"p_target_container": {
 				"type": "string"
