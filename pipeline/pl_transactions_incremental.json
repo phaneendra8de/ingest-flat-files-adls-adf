@@ -1,0 +1,290 @@
+{
+	"name": "pl_transactions_incremental",
+	"properties": {
+		"activities": [
+			{
+				"name": "act_run_start",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "pl_transactions_incremental",
+						"p_load_type": "FULL",
+						"p_status": "START",
+						"p_records": "0",
+						"p_dataset_name": "transactions"
+					}
+				}
+			},
+			{
+				"name": "act_stg_transactions",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "act_run_start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_transactions_to_stg"
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_databricks_dev",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "act_validate",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_stg_transactions",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_validation",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_dataset_name": "transactions",
+						"p_table_name": "stg_transactions",
+						"p_key_column": "txn_month"
+					}
+				}
+			},
+			{
+				"name": "act_scd2_transactions",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "act_validate",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_transactions_scd2"
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_databricks_dev",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "act_run_success",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_transactions",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "pl_transactions_incremental",
+						"p_load_type": "FULL",
+						"p_status": "SUCCESS",
+						"p_records": "344",
+						"p_dataset_name": "transactions"
+					}
+				}
+			},
+			{
+				"name": "act_run_fail",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_transactions",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "pl_transactions_incremental",
+						"p_load_type": "FULL",
+						"p_status": "FAILED",
+						"p_records": "0",
+						"p_dataset_name": "transactions"
+					}
+				}
+			},
+			{
+				"name": "call_error_handler",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_stg_transactions",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "pl_transactions_incremental",
+						"p_activity_name": {
+							"value": "@activity('act_stg_transactions').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_stg_transactions').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "call_error_handler_copy1",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_validate",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "pl_transactions_incremental",
+						"p_activity_name": {
+							"value": "@activity('act_validate').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_validate').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "call_error_handler_copy2",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_transactions",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": {
+							"value": "pl_transactions_incremental",
+							"type": "Expression"
+						},
+						"p_activity_name": {
+							"value": "@activity('act_scd2_transactions').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_scd2_transactions').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"annotations": []
+	}
+}
