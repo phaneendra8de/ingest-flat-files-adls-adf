@@ -1,0 +1,292 @@
+{
+	"name": "pl_orders_incremental",
+	"properties": {
+		"activities": [
+			{
+				"name": "act_run_start",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "pl_orders_incremental",
+						"p_load_type": "INCREMENTAL",
+						"p_status": "START",
+						"p_records": "0",
+						"p_dataset_name": "orders"
+					}
+				}
+			},
+			{
+				"name": "act_stg_orders",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "act_run_start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_orders_to_stg"
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_databricks_dev",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "act_validate",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_stg_orders",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_validation",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_dataset_name": "orders",
+						"p_table_name": "stg_orders",
+						"p_key_column": "order_id"
+					}
+				}
+			},
+			{
+				"name": "act_scd2_orders",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "act_validate",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_orders_scd2"
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_databricks_dev",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "act_run_success",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_orders",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "pl_orders_incremental",
+						"p_load_type": "INCREMENTAL",
+						"p_status": "SUCCESS",
+						"p_records": "123",
+						"p_dataset_name": "orders"
+					}
+				}
+			},
+			{
+				"name": "act_run_fail",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_orders",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "pl_orders_incremental",
+						"p_load_type": "INCREMENTAL",
+						"p_status": "FAILED",
+						"p_records": "0",
+						"p_dataset_name": "orders"
+					}
+				}
+			},
+			{
+				"name": "call_error_handler",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_stg_orders",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "pl_orders_incremental",
+						"p_activity_name": {
+							"value": "@activity('act_stg_orders').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_stg_orders').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "call_error_handler_2",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_validate",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "pl_orders_incremental",
+						"p_activity_name": {
+							"value": "@activity('act_validate').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_validate').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "call_error_handler_3",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_orders",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "pl_orders_incremental",
+						"p_activity_name": {
+							"value": "@activity('act_scd2_orders').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_scd2_orders').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"p_run_id": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}
