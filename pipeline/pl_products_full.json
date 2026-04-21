@@ -168,7 +168,7 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"p_pipeline_name": "pl_country_full",
+						"p_pipeline_name": "pl_products_full",
 						"p_activity_name": {
 							"value": "@activity('act_stg_products').name",
 							"type": "Expression"
@@ -206,7 +206,7 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"p_pipeline_name": "\"pl_country_full\"",
+						"p_pipeline_name": "pl_products_full",
 						"p_activity_name": {
 							"value": "@activity('act_validate').name",
 							"type": "Expression"
@@ -244,7 +244,7 @@
 							"value": "@pipeline().RunId",
 							"type": "Expression"
 						},
-						"p_pipeline_name": "\"pl_country_full\"",
+						"p_pipeline_name": "pl_products_full",
 						"p_activity_name": {
 							"value": "@activity('act_scd2_products').name",
 							"type": "Expression"
