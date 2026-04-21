@@ -1,0 +1,42 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adls-to-postgres-flatfile-processing"
+		},
+		"ls_adls_gen2_dev_accountKey": {
+			"value": ""
+		},
+		"ls_databricks_dev_accessToken": {
+			"value": ""
+		},
+		"ls_postgres_dev_password": {
+			"value": ""
+		},
+		"ls_postgres_password": {
+			"value": ""
+		},
+		"ls_adls_gen2_dev_properties_typeProperties_url": {
+			"value": "https://stphdplatdevcin01.dfs.core.windows.net/"
+		},
+		"ls_postgres_dev_properties_typeProperties_server": {
+			"value": "psql-phani-deplatform-dev-cin-01.postgres.database.azure.com"
+		},
+		"ls_postgres_dev_properties_typeProperties_database": {
+			"value": "fap"
+		},
+		"ls_postgres_dev_properties_typeProperties_username": {
+			"value": "adminuser"
+		},
+		"ls_postgres_properties_typeProperties_server": {
+			"value": "psql-phani-deplatform-dev-cin-01.postgres.database.azure.com"
+		},
+		"ls_postgres_properties_typeProperties_database": {
+			"value": "fap"
+		},
+		"ls_postgres_properties_typeProperties_username": {
+			"value": "adminuser"
+		}
+	}
+}

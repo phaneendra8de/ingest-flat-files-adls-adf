@@ -1,0 +1,996 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adls-to-postgres-flatfile-processing"
+		},
+		"ls_adls_gen2_dev_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'ls_adls_gen2_dev'"
+		},
+		"ls_databricks_dev_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'ls_databricks_dev'"
+		},
+		"ls_postgres_dev_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_postgres_dev'"
+		},
+		"ls_postgres_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_postgres'"
+		},
+		"ls_adls_gen2_dev_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stphdplatdevcin01.dfs.core.windows.net/"
+		},
+		"ls_postgres_dev_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "psql-phani-deplatform-dev-cin-01.postgres.database.azure.com"
+		},
+		"ls_postgres_dev_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "fap"
+		},
+		"ls_postgres_dev_properties_typeProperties_username": {
+			"type": "string",
+			"defaultValue": "adminuser"
+		},
+		"ls_postgres_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "psql-phani-deplatform-dev-cin-01.postgres.database.azure.com"
+		},
+		"ls_postgres_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "fap"
+		},
+		"ls_postgres_properties_typeProperties_username": {
+			"type": "string",
+			"defaultValue": "adminuser"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_adls_gen2_dev')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adls_gen2_dev_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('ls_adls_gen2_dev_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_databricks_dev')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-7405611166969193.13.azuredatabricks.net",
+					"accessToken": {
+						"type": "SecureString",
+						"value": "[parameters('ls_databricks_dev_accessToken')]"
+					},
+					"newClusterNodeType": "Standard_D4s_v4",
+					"newClusterNumOfWorker": "1",
+					"newClusterSparkEnvVars": {
+						"PYSPARK_PYTHON": "/databricks/python3/bin/python3"
+					},
+					"newClusterVersion": "13.3.x-scala2.12",
+					"clusterOption": "Fixed",
+					"newClusterInitScripts": []
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_postgres_dev')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzurePostgreSql",
+				"version": "2.0",
+				"typeProperties": {
+					"server": "[parameters('ls_postgres_dev_properties_typeProperties_server')]",
+					"port": "5432",
+					"database": "[parameters('ls_postgres_dev_properties_typeProperties_database')]",
+					"sslMode": 2,
+					"username": "[parameters('ls_postgres_dev_properties_typeProperties_username')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('ls_postgres_dev_password')]"
+					},
+					"authenticationType": "Basic"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_postgres')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzurePostgreSql",
+				"version": "2.0",
+				"typeProperties": {
+					"server": "[parameters('ls_postgres_properties_typeProperties_server')]",
+					"port": "5432",
+					"database": "[parameters('ls_postgres_properties_typeProperties_database')]",
+					"sslMode": 3,
+					"username": "[parameters('ls_postgres_properties_typeProperties_username')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('ls_postgres_password')]"
+					},
+					"authenticationType": "Basic"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_etl_error_log')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_postgres",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "run_id",
+						"type": "bigint",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pipeline_name",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "activity_name",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "error_message",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "public",
+					"table": "etl_error_log"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_postgres')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_error_handler')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "act_log_error",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_postgres",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": "INSERT INTO etl_error_log (\n    run_id,\n    pipeline_name,\n    activity_name,\n    error_message,\n    created_at\n)\nVALUES (\n    '@{pipeline().parameters.p_run_id}',\n    '@{pipeline().parameters.p_pipeline_name}',\n    '@{pipeline().parameters.p_activity_name}',\n    '@{pipeline().parameters.p_error_message}',\n    CURRENT_TIMESTAMP\n);"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_run_id": {
+						"type": "string"
+					},
+					"p_pipeline_name": {
+						"type": "string"
+					},
+					"p_activity_name": {
+						"type": "string"
+					},
+					"p_error_message": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_postgres')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_run_tracking')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "act_run_tracking",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_postgres",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "-- Insert when START\nINSERT INTO etl_run_tracking (\n    pipeline_name,\n    dataset_name,\n    load_type,\n    start_time,\n    status\n)\nSELECT\n    '@{pipeline().parameters.p_pipeline_name}',\n    '@{pipeline().parameters.p_dataset_name}',\n    '@{pipeline().parameters.p_load_type}',\n    CURRENT_TIMESTAMP,\n    'STARTED'\nWHERE '@{pipeline().parameters.p_status}' = 'START';\n\n-- Update when SUCCESS or FAILED\nUPDATE etl_run_tracking\nSET\n    end_time = CURRENT_TIMESTAMP,\n    status = '@{pipeline().parameters.p_status}',\n    records_processed = @{pipeline().parameters.p_records},\n    error_message = '@{pipeline().parameters.p_error_message}'\nWHERE pipeline_name = '@{pipeline().parameters.p_pipeline_name}'\n  AND status = 'STARTED'\n  AND '@{pipeline().parameters.p_status}' IN ('SUCCESS','FAILED');\n",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_pipeline_name": {
+						"type": "string"
+					},
+					"p_load_type": {
+						"type": "string"
+					},
+					"p_status": {
+						"type": "string"
+					},
+					"p_records": {
+						"type": "string"
+					},
+					"p_error_message": {
+						"type": "string"
+					},
+					"p_dataset_name": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_postgres')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_etl_run_tracking')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_postgres",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "run_id",
+						"type": "bigint",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pipeline_name",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "dataset_name",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "load_type",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "start_time",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "end_time",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "status",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "records_processed",
+						"type": "integer",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "error_message",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "public",
+					"table": "etl_run_tracking"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_postgres')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_etl_dq_log')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_postgres",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "dataset_name",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "check_name",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "check_status",
+						"type": "character varying",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "failed_records",
+						"type": "integer",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "public",
+					"table": "etl_data_quality_log"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_postgres')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_generic_query')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_postgres",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [],
+				"typeProperties": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_postgres')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_validation')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "act_check_row_count",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzurePostgreSqlSource",
+								"query": "SELECT COUNT(*) AS cnt FROM @{pipeline().parameters.p_table_name}",
+								"partitionOption": "None",
+								"queryTimeout": "02:00:00"
+							},
+							"dataset": {
+								"referenceName": "ds_generic_query",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": true
+						}
+					},
+					{
+						"name": "if_no_data",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "act_check_row_count",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(activity('act_check_row_count').output.firstRow.cnt,0)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "fail_no_data",
+									"type": "Fail",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"message": "Validation Failed: No data found",
+										"errorCode": "ERR_NO_DATA"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "act_check_duplicates",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "if_no_data",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzurePostgreSqlSource",
+								"query": {
+									"value": "SELECT COUNT(*) AS dup_cnt\nFROM (\n    SELECT @{pipeline().parameters.p_key_column}\n    FROM @{pipeline().parameters.p_table_name}\n    GROUP BY @{pipeline().parameters.p_key_column}\n    HAVING COUNT(*) > 1\n) t",
+									"type": "Expression"
+								},
+								"partitionOption": "None",
+								"queryTimeout": "02:00:00"
+							},
+							"dataset": {
+								"referenceName": "ds_generic_query",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": true
+						}
+					},
+					{
+						"name": "if_duplicates",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "act_check_duplicates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@greater(activity('act_check_duplicates').output.firstRow.dup_cnt,0)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "fail_duplicates",
+									"type": "Fail",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"message": "Validation Failed: Duplicate records found",
+										"errorCode": "ERR_DUP_DATA"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "act_check_nulls",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "if_duplicates",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzurePostgreSqlSource",
+								"query": {
+									"value": "SELECT COUNT(*) AS null_cnt\nFROM @{pipeline().parameters.p_table_name}\nWHERE @{pipeline().parameters.p_key_column} IS NULL",
+									"type": "Expression"
+								},
+								"partitionOption": "None",
+								"queryTimeout": "02:00:00"
+							},
+							"dataset": {
+								"referenceName": "ds_generic_query",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": true
+						}
+					},
+					{
+						"name": "if_nulls",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "act_check_nulls",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@greater(activity('act_check_nulls').output.firstRow.null_cnt,0)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "fail_nulls",
+									"type": "Fail",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"message": "Validation Failed: Null values found",
+										"errorCode": "ERR_NULL_DATA"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_dataset_name": {
+						"type": "string"
+					},
+					"p_table_name": {
+						"type": "string"
+					},
+					"p_key_column": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_generic_query')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_country_full')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "act_run_start",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_run_tracking",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"p_pipeline_name": "pl_country_full",
+								"p_load_type": "FULL",
+								"p_status": "START",
+								"p_records": "0",
+								"p_dataset_name": "country"
+							}
+						}
+					},
+					{
+						"name": "act_stg_country",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "act_run_start",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_country_to_stg",
+							"baseParameters": {
+								"adls_path": "abfss://source@stphdplatdevcin01.dfs.core.windows.net/country/country.csv",
+								"target_table": "stg_country",
+								"load_mode": "overwrite"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_dev",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "act_validate",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "act_stg_country",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_validation",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"p_dataset_name": "country",
+								"p_table_name": "stg_country",
+								"p_key_column": "country"
+							}
+						}
+					},
+					{
+						"name": "act_scd2_country",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "act_validate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_country_scd2"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_dev",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "act_run_success",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "act_scd2_country",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_run_tracking",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"p_pipeline_name": "pl_country_full",
+								"p_load_type": "FULL",
+								"p_status": "SUCCESS",
+								"p_records": "124",
+								"p_dataset_name": "country"
+							}
+						}
+					},
+					{
+						"name": "call_error_handler",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "act_stg_country",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_error_handler",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"p_run_id": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"p_pipeline_name": "pl_country_full",
+								"p_activity_name": {
+									"value": "@activity('act_stg_country').name",
+									"type": "Expression"
+								},
+								"p_error_message": {
+									"value": "@activity('act_stg_country').error.message",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "call_error_handler_2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "act_validate",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_error_handler",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"p_run_id": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"p_pipeline_name": "\"pl_country_full\"",
+								"p_activity_name": {
+									"value": "@activity('act_validate').name",
+									"type": "Expression"
+								},
+								"p_error_message": {
+									"value": "@activity('act_validate').error.message",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "call_error_handler_3",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "act_scd2_country",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_error_handler",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"p_run_id": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"p_pipeline_name": "\"pl_country_full\"",
+								"p_activity_name": {
+									"value": "@activity('act_scd2_country').name",
+									"type": "Expression"
+								},
+								"p_error_message": {
+									"value": "@activity('act_scd2_country').error.message",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "act_run_fail",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "act_scd2_country",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_run_tracking",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"p_pipeline_name": "pl_country_full",
+								"p_load_type": "FULL",
+								"p_status": "FAILED",
+								"p_records": "124",
+								"p_dataset_name": "country"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_run_id": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_run_tracking')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_databricks_dev')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_validation')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_error_handler')]"
+			]
+		}
+	]
+}

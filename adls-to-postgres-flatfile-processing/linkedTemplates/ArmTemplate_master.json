@@ -1,0 +1,119 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adls-to-postgres-flatfile-processing"
+		},
+		"ls_adls_gen2_dev_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'ls_adls_gen2_dev'"
+		},
+		"ls_databricks_dev_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'ls_databricks_dev'"
+		},
+		"ls_postgres_dev_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_postgres_dev'"
+		},
+		"ls_postgres_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_postgres'"
+		},
+		"ls_adls_gen2_dev_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stphdplatdevcin01.dfs.core.windows.net/"
+		},
+		"ls_postgres_dev_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "psql-phani-deplatform-dev-cin-01.postgres.database.azure.com"
+		},
+		"ls_postgres_dev_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "fap"
+		},
+		"ls_postgres_dev_properties_typeProperties_username": {
+			"type": "string",
+			"defaultValue": "adminuser"
+		},
+		"ls_postgres_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "psql-phani-deplatform-dev-cin-01.postgres.database.azure.com"
+		},
+		"ls_postgres_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "fap"
+		},
+		"ls_postgres_properties_typeProperties_username": {
+			"type": "string",
+			"defaultValue": "adminuser"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "adls-to-postgres-flatfile-processing_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"ls_adls_gen2_dev_accountKey": {
+						"value": "[parameters('ls_adls_gen2_dev_accountKey')]"
+					},
+					"ls_databricks_dev_accessToken": {
+						"value": "[parameters('ls_databricks_dev_accessToken')]"
+					},
+					"ls_postgres_dev_password": {
+						"value": "[parameters('ls_postgres_dev_password')]"
+					},
+					"ls_postgres_password": {
+						"value": "[parameters('ls_postgres_password')]"
+					},
+					"ls_adls_gen2_dev_properties_typeProperties_url": {
+						"value": "[parameters('ls_adls_gen2_dev_properties_typeProperties_url')]"
+					},
+					"ls_postgres_dev_properties_typeProperties_server": {
+						"value": "[parameters('ls_postgres_dev_properties_typeProperties_server')]"
+					},
+					"ls_postgres_dev_properties_typeProperties_database": {
+						"value": "[parameters('ls_postgres_dev_properties_typeProperties_database')]"
+					},
+					"ls_postgres_dev_properties_typeProperties_username": {
+						"value": "[parameters('ls_postgres_dev_properties_typeProperties_username')]"
+					},
+					"ls_postgres_properties_typeProperties_server": {
+						"value": "[parameters('ls_postgres_properties_typeProperties_server')]"
+					},
+					"ls_postgres_properties_typeProperties_database": {
+						"value": "[parameters('ls_postgres_properties_typeProperties_database')]"
+					},
+					"ls_postgres_properties_typeProperties_username": {
+						"value": "[parameters('ls_postgres_properties_typeProperties_username')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
