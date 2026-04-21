@@ -1,0 +1,12 @@
+{
+	"name": "ds_generic_query",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_postgres",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzurePostgreSqlTable",
+		"schema": []
+	}
+}

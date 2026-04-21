@@ -1,0 +1,267 @@
+{
+	"name": "pl_country_full",
+	"properties": {
+		"activities": [
+			{
+				"name": "act_run_start",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "\"pl_country_full\"",
+						"p_load_type": "\"FULL\"",
+						"p_records": "0",
+						"p_error_message": "\"\"",
+						"p_dataset_name": "\"country\""
+					}
+				}
+			},
+			{
+				"name": "act_stg_country",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "act_run_start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_country_to_stg",
+					"baseParameters": {
+						"adls_path": "abfss://source@stphdplatdevcin01.dfs.core.windows.net/country/country.csv",
+						"target_table": "stg_country",
+						"load_mode": "overwrite"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_databricks_dev",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "act_validate",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_stg_country",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_validation",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_dataset_name": "\"country\"",
+						"p_table_name": "\"stg_country\"",
+						"p_key_column": "\"country\""
+					}
+				}
+			},
+			{
+				"name": "act_scd2_country",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "act_validate",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/phaneendra.mahankali8@gmail.com/fap/nb_country_scd2"
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_databricks_dev",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "act_run_success",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_country",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_run_tracking",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_pipeline_name": "\"pl_country_full\"",
+						"p_load_type": "\"FULL\"",
+						"p_records": "124",
+						"p_error_message": "\"\"",
+						"p_dataset_name": "\"country\""
+					}
+				}
+			},
+			{
+				"name": "call_error_handler",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_stg_country",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "\"pl_country_full\"",
+						"p_activity_name": {
+							"value": "@activity('act_stg_country').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_stg_country').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "call_error_handler_2",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_validate",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "\"pl_country_full\"",
+						"p_activity_name": {
+							"value": "@activity('act_validate').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_validate').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "call_error_handler_3",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "act_scd2_country",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_error_handler",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"p_run_id": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"p_pipeline_name": "\"pl_country_full\"",
+						"p_activity_name": {
+							"value": "@activity('act_scd2_country').name",
+							"type": "Expression"
+						},
+						"p_error_message": {
+							"value": "@activity('act_scd2_country').error.message",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"p_run_id": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}

@@ -1,0 +1,210 @@
+{
+	"name": "pl_validation",
+	"properties": {
+		"activities": [
+			{
+				"name": "act_check_row_count",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzurePostgreSqlSource",
+						"query": "SELECT COUNT(*) AS cnt FROM @{pipeline().parameters.p_table_name}",
+						"partitionOption": "None",
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "ds_generic_query",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "if_no_data",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "act_check_row_count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('act_check_row_count').output.firstRow.cnt,0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "fail_no_data",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Validation Failed: No data found",
+								"errorCode": "ERR_NO_DATA"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "act_check_duplicates",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "if_no_data",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzurePostgreSqlSource",
+						"query": {
+							"value": "SELECT COUNT(*) AS dup_cnt\nFROM (\n    SELECT @{pipeline().parameters.p_key_column}\n    FROM @{pipeline().parameters.p_table_name}\n    GROUP BY @{pipeline().parameters.p_key_column}\n    HAVING COUNT(*) > 1\n) t",
+							"type": "Expression"
+						},
+						"partitionOption": "None",
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "ds_generic_query",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "if_duplicates",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "act_check_duplicates",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('act_check_duplicates').output.firstRow.dup_cnt,0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "fail_duplicates",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Validation Failed: Duplicate records found",
+								"errorCode": "ERR_DUP_DATA"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "act_check_nulls",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "if_duplicates",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzurePostgreSqlSource",
+						"query": {
+							"value": "SELECT COUNT(*) AS null_cnt\nFROM @{pipeline().parameters.p_table_name}\nWHERE @{pipeline().parameters.p_key_column} IS NULL",
+							"type": "Expression"
+						},
+						"partitionOption": "None",
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "ds_generic_query",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "if_nulls",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "act_check_nulls",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('act_check_nulls').output.firstRow.null_cnt,0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "fail_nulls",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Validation Failed: Null values found",
+								"errorCode": "ERR_NULL_DATA"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"p_dataset_name": {
+				"type": "string"
+			},
+			"p_table_name": {
+				"type": "string"
+			},
+			"p_key_column": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}

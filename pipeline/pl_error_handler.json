@@ -1,0 +1,48 @@
+{
+	"name": "pl_error_handler",
+	"properties": {
+		"activities": [
+			{
+				"name": "act_log_error",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_postgres",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "INSERT INTO etl_error_log (\n    run_id,\n    pipeline_name,\n    activity_name,\n    error_message,\n    created_at\n)\nVALUES (\n    '@{pipeline().parameters.p_run_id}',\n    '@{pipeline().parameters.p_pipeline_name}',\n    '@{pipeline().parameters.p_activity_name}',\n    '@{pipeline().parameters.p_error_message}',\n    CURRENT_TIMESTAMP\n);"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"p_run_id": {
+				"type": "string"
+			},
+			"p_pipeline_name": {
+				"type": "string"
+			},
+			"p_activity_name": {
+				"type": "string"
+			},
+			"p_error_message": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}

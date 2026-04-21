@@ -1,0 +1,54 @@
+{
+	"name": "pl_run_tracking",
+	"properties": {
+		"activities": [
+			{
+				"name": "act_run_tracking",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_postgres",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "-- INSERT when START\nINSERT INTO etl_run_tracking (\n    pipeline_name,\n    dataset_name,\n    load_type,\n    start_time,\n    status\n)\nSELECT\n    '@{pipeline().parameters.p_pipeline_name}',\n    '@{pipeline().parameters.p_dataset_name}',\n    '@{pipeline().parameters.p_load_type}',\n    CURRENT_TIMESTAMP,\n    'STARTED'\nWHERE '@{pipeline().parameters.p_status}' = 'START';\n\n\n-- UPDATE when SUCCESS or FAILED\nUPDATE etl_run_tracking\nSET\n    end_time = CURRENT_TIMESTAMP,\n    status = '@{pipeline().parameters.p_status}',\n    records_processed = @{pipeline().parameters.p_records},\n    error_message = '@{pipeline().parameters.p_error_message}'\nWHERE pipeline_name = '@{pipeline().parameters.p_pipeline_name}'\n  AND status = 'STARTED';"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"p_pipeline_name": {
+				"type": "string"
+			},
+			"p_load_type": {
+				"type": "string"
+			},
+			"p_status": {
+				"type": "string"
+			},
+			"p_records": {
+				"type": "string"
+			},
+			"p_error_message": {
+				"type": "string"
+			},
+			"p_dataset_name": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}
